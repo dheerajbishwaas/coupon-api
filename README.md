@@ -452,5 +452,4 @@ Add "time windows" for coupon activation.
 - active_days: ['mon','tue','wed'] 
 - active_hours: '09:00-17:00'
 
-
-Also maine vendor ki file commit ki hai jan ke ki hai maine esko k
+Also, I have intentionally committed the vendor folder so that you don't need to run composer install on your end.
