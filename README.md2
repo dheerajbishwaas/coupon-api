@@ -1,0 +1,189 @@
+-- Coupons Table
+CREATE TABLE `coupons` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) UNIQUE NOT NULL,
+    `type` ENUM('cart-wise', 'product-wise', 'bxgy') NOT NULL,
+    `description` TEXT,
+    `is_active` BOOLEAN DEFAULT TRUE,
+    `start_date` DATETIME,
+    `end_date` DATETIME,
+    `max_uses` INT DEFAULT NULL,
+    `uses_count` INT DEFAULT 0,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_active_dates` (`is_active`, `start_date`, `end_date`)
+);
+
+-- Cart-wise Coupons Table
+CREATE TABLE `cart_wise_coupons` (
+    `coupon_id` INT PRIMARY KEY,
+    `min_amount` DECIMAL(10,2) NOT NULL COMMENT 'Minimum cart value to apply',
+    `discount_type` ENUM('amount', 'percentage') NOT NULL,
+    `discount_value` DECIMAL(10,2) NOT NULL,
+    `max_discount` DECIMAL(10,2) DEFAULT NULL COMMENT 'For percentage caps',
+    FOREIGN KEY (`coupon_id`) REFERENCES `coupons`(`id`) ON DELETE CASCADE
+);
+
+-- Product-wise Coupons Table
+CREATE TABLE `product_wise_coupons` (
+    `coupon_id` INT PRIMARY KEY,
+    `discount_type` ENUM('amount', 'percentage') NOT NULL,
+    `discount_value` DECIMAL(10,2) NOT NULL,
+    `max_uses_per_product` INT DEFAULT NULL,
+    FOREIGN KEY (`coupon_id`) REFERENCES `coupons`(`id`) ON DELETE CASCADE
+);
+
+-- BxGy Rules Table (Buy X, Get Y rules)
+CREATE TABLE `bxgy_rules` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `coupon_id` INT NOT NULL,
+    `buy_type` ENUM('product', 'group') NOT NULL,
+    `buy_id` INT COMMENT 'product_id or group_id',
+    `buy_quantity` INT NOT NULL DEFAULT 1,
+    `get_type` ENUM('product', 'group') NOT NULL,
+    `get_id` INT COMMENT 'product_id or group_id',
+    `get_quantity` INT NOT NULL DEFAULT 1,
+    `get_discount` ENUM('free', 'percentage') DEFAULT 'free',
+    `discount_value` DECIMAL(5,2) DEFAULT NULL COMMENT 'For percentage discounts',
+    FOREIGN KEY (`coupon_id`) REFERENCES `coupons`(`id`) ON DELETE CASCADE,
+    INDEX `idx_coupon_buy` (`coupon_id`, `buy_type`, `buy_id`),
+    INDEX `idx_coupon_get` (`coupon_id`, `get_type`, `get_id`)
+);
+
+-- BxGy Products Table (Buy/Get products for coupon)
+CREATE TABLE `bxgy_products` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `coupon_id` INT NOT NULL,
+    `product_id` INT NOT NULL,
+    `type` ENUM('buy', 'get') NOT NULL,
+    FOREIGN KEY (`coupon_id`) REFERENCES `coupons`(`id`) ON DELETE CASCADE
+);
+
+-- Products Table (Product Details)
+CREATE TABLE `products` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
+    `price` DECIMAL(10,2) NOT NULL,
+    `stock` INT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+{
+  "code": "SUMMER203",
+  "type": "cart-wise",
+  "start_date": "2025-06-01",
+  "end_date": "2025-06-30",
+  "min_amount": 100,
+  "discount_type": "percentage",
+  "discount_value": 10,
+  "is_active": true,
+  "description":"SUMMERMODADS-MODS-JKDSD",
+  "max_uses":8,
+  "max_discount":20,
+  "uses_count":1000
+}
+
+BXGY --> Api Pload 
+{
+  "code": "GROUPBON5",
+  "type": "bxgy",
+  "description": "Buy from group 1, get items from group 2 free",
+  "is_active": true,
+  "start_date": "2025-04-13 00:00:00",
+  "end_date": "2025-05-01 23:59:59",
+  "max_uses": 200,
+  "get_id": 2, // This is the ID of the getting group
+  "repetition_limit": 3,
+  "products": [
+    {
+      "product_id": 101,
+      "type": "buy"
+    },
+    {
+      "product_id": 201,
+      "type": "get"
+    },
+    {
+      "product_id": 203,
+      "type": "get"
+    }
+  ]
+}
+
+
+status : 201 success
+response :
+{
+  "status": "success",
+  "data": {
+    "coupon_id": "8",
+    "message": "Coupon created successfully"
+  }
+}
+
+type : cart-wise
+
+playload
+{
+  "code": "FREESHIP25",
+  "type": "cart-wise",
+  "description": "Free shipping on orders over $25",
+  "start_date": "2023-12-01",
+  "end_date": "2023-12-31",
+  "is_active": true,
+  "max_uses": 500,
+  "min_amount": 25.00,
+  "discount_type": "fixed",
+  "discount_value": 5.99,
+  "max_discount": null
+}
+
+response:
+
+{
+  "status": "success",
+  "data": {
+    "coupon_id": "9",
+    "message": "Coupon created successfully"
+  }
+}
+
+--Payload of product-wise 
+
+{
+  "code": "30OFFSHOES",
+  "type": "product-wise",
+  "description": "30% off all shoes",
+  "start_date": "2023-12-01",
+  "end_date": "2023-12-31",
+  "is_active": true,
+  "max_uses": 1000,
+  "discount_type": "percentage",
+  "discount_value": 30.00,
+  "max_discount": 50.00,
+  "products": [123, 456, 789]
+}
+
+Response:
+{
+  "status": "success",
+  "data": {
+    "coupon_id": "9",
+    "message": "Coupon created successfully"
+  }
+}
+
+Applicable 
+
+{
+  "cart": {
+    "items": [
+      {"product_id": 101, "quantity": 6, "price": 50},
+      {"product_id": 203, "quantity": 3, "price": 30},
+      {"product_id": 201, "quantity": 3, "price": 25}
+    ]
+  }
+}
+
+jo bhi Table nane gye usme ik id name ki or koi bhi auto_increment wali field rkhi pdegye kyuu maine jo insert me common method create kiya wo last inserted id return krta hai or agar wo 0 retur krge to age ho skta hai wo shi se programming work na kre
